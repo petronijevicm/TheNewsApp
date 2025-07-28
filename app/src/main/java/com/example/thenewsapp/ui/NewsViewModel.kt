@@ -59,6 +59,14 @@ class NewsViewModel(app: Application, val newsRepository: NewsRepository): Andro
     private fun handleSearchNewsResponse(response: Response<NewsResponse>) : Resource<NewsResponse> {
         if(response.isSuccessful) {
             response.body()?.let { resultResponse ->
+                // If the API returned no articles, emit an empty state
+                if (resultResponse.totalResults == 0 || resultResponse.articles.isEmpty()) {
+                    // Reset any cached search response
+                    searchNewsResponse = null
+                    searchNewsPage = 1
+                    return Resource.Empty()
+                }
+
                 if(searchNewsResponse == null || newSearchQuery != oldSearchQuery) {
                     searchNewsPage = 1
                     oldSearchQuery = newSearchQuery
