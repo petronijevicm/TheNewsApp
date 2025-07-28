@@ -1,0 +1,84 @@
+diff --git a/app/src/main/java/com/example/thenewsapp/util/Resource.kt b/app/src/main/java/com/example/thenewsapp/util/Resource.kt
+index 3a5f2d8..7b9c1e4 100644
+--- a/app/src/main/java/com/example/thenewsapp/util/Resource.kt
++++ b/app/src/main/java/com/example/thenewsapp/util/Resource.kt
+@@ sealed class Resource<T>(
+     class Success<T>(data: T): Resource<T>(data)
+     class Error<T>(message: String, data: T?=null): Resource<T>(data, message)
+-    class Loading<T>: Resource<T>()
++    class Loading<T>: Resource<T>()
++    // Represents a successful response with no data
++    class Empty<T>: Resource<T>()
+diff --git a/app/src/main/java/com/example/thenewsapp/ui/NewsViewModel.kt b/app/src/main/java/com/example/thenewsapp/ui/NewsViewModel.kt
+index d4e1a7c..e6f2b9a 100644
+--- a/app/src/main/java/com/example/thenewsapp/ui/NewsViewModel.kt
++++ b/app/src/main/java/com/example/thenewsapp/ui/NewsViewModel.kt
+@@ private fun handleSearchNewsResponse(response: Response<NewsResponse>) : Resource<NewsResponse> {
+-        response.body()?.let { resultResponse ->
++        response.body()?.let { resultResponse ->
++            // Handle case where API returns zero articles
++            if (resultResponse.totalResults == 0 || resultResponse.articles.isEmpty()) {
++                return Resource.Empty()
++            }
+diff --git a/app/src/main/java/com/example/thenewsapp/ui/fragments/SearchFragment.kt b/app/src/main/java/com/example/thenewsapp/ui/fragments/SearchFragment.kt
+index a7c3e2f..b2d4f48 100644
+--- a/app/src/main/java/com/example/thenewsapp/ui/fragments/SearchFragment.kt
++++ b/app/src/main/java/com/example/thenewsapp/ui/fragments/SearchFragment.kt
+@@ newsViewModel.searchNews.observe(viewLifecycleOwner, Observer { response ->
+-            is Resource.Success<*> -> {
+-                    hideProgressBar()
+-                    hideErrorMessage()
+-                    response.data?.let {newsResponse ->
+-                        newsAdapter.differ.submitList(newsResponse.articles.toList())
+-                        val totalPages = newsResponse.totalResults / Constants.QUERY_PAGE_SIZE + 2
+-                        isLastPage = newsViewModel.searchNewsPage == totalPages
+-                        if (isLastPage){
+-                            binding.recyclerSearch.setPadding(0,0,0,0)
+-                        }
++            is Resource.Success<*> -> {
++                hideProgressBar()
++                hideErrorMessage()
++                val newsResponse = response.data
++                // Empty state: show "no results" message and stop pagination
++                if (newsResponse == null || newsResponse.totalResults == 0 || newsResponse.articles.isEmpty()) {
++                    showNoResultsMessage("No articles found for ‘${binding.searchEdit.text}’")
++                    newsAdapter.differ.submitList(emptyList())
++                    isLastPage = true
++                    return@Observer
++                } else {
++                    hideNoResultsMessage()
++                }
++                // Normal success flow
++                newsAdapter.differ.submitList(newsResponse.articles.toList())
++                val totalPages = (newsResponse.totalResults + Constants.QUERY_PAGE_SIZE - 1)
++                                 / Constants.QUERY_PAGE_SIZE
++                isLastPage = newsViewModel.searchNewsPage == totalPages
++                if (isLastPage) {
++                    binding.recyclerSearch.setPadding(0, 0, 0, 0)
++                }
+diff --git a/app/src/main/res/layout/fragment_search.xml b/app/src/main/res/layout/fragment_search.xml
+index 9c8b7f1..c3d5e7a 100644
+--- a/app/src/main/res/layout/fragment_search.xml
++++ b/app/src/main/res/layout/fragment_search.xml
+@@
+     <include
+         android:id="@+id/itemSearchError"
+         layout="@layout/item_error"
+         android:visibility="invisible"
+-        app:layout_constraintTop_toTopOf="parent" />
++        app:layout_constraintTop_toBottomOf="@+id/searchEdit" />
++
++    <!-- No-results placeholder -->
++    <TextView
++        android:id="@+id/noResultsText"
++        android:layout_width="0dp"
++        android:layout_height="wrap_content"
++        android:visibility="gone"
++        android:textSize="16sp"
++        android:gravity="center"
++        android:text="No articles found"
++        app:layout_constraintTop_toBottomOf="@id/searchEdit"
++        app:layout_constraintStart_toStartOf="parent"
++        app:layout_constraintEnd_toEndOf="parent"
++        android:layout_margin="16dp" />
+
