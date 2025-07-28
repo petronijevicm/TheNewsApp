@@ -19,6 +19,8 @@ import com.example.thenewsapp.ui.NewsActivity
 import com.example.thenewsapp.ui.NewsViewModel
 import com.example.thenewsapp.util.Constants
 import com.example.thenewsapp.util.Resource
+import android.util.Log
+
 
 class HeadlinesFragment : Fragment(R.layout.fragment_headlines) {
 
@@ -41,12 +43,19 @@ class HeadlinesFragment : Fragment(R.layout.fragment_headlines) {
         newsViewModel = (activity as NewsActivity).newsViewModel
         setupHeadlinesRecycler()
 
-        newsAdapter.setOnItemClickListener {
+        newsAdapter.setOnItemClickListener { article ->
+            if (article.url.isNullOrEmpty()) {
+                Log.w("HeadlinesFragment", "Article has null/empty URL, navigation skipped.")
+                Toast.makeText(context, "Nevažeći članak (nema URL).", Toast.LENGTH_SHORT).show()
+                return@setOnItemClickListener
+            }
+
             val bundle = Bundle().apply {
-                putSerializable("article", it)
+                putSerializable("article", article)
             }
             findNavController().navigate(R.id.action_headlinesFragment_to_articleFragment, bundle)
         }
+
 
         newsViewModel.headlines.observe(viewLifecycleOwner, Observer { response ->
             when(response){
@@ -72,6 +81,8 @@ class HeadlinesFragment : Fragment(R.layout.fragment_headlines) {
                 is Resource.Loading<*> -> {
                     showProgressBar()
                 }
+
+                else -> {}
             }
         })
 

@@ -11,6 +11,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.thenewsapp.R
 import com.example.thenewsapp.models.Article
+import android.util.Log
+
 
 class NewsAdapter: RecyclerView.Adapter<NewsAdapter.ArticleViewHolder>() {
 
@@ -57,10 +59,19 @@ class NewsAdapter: RecyclerView.Adapter<NewsAdapter.ArticleViewHolder>() {
             holder.articleDateTime.text = article.publishedAt
 
             setOnClickListener {
+                if (article.url.isNullOrEmpty()) {
+                    Log.w("NewsAdapter", "Clicked article has null or empty URL. Skipping.")
+                    return@setOnClickListener
+                }
+                if (article.source.name.isNullOrEmpty()) {
+                    Log.w("NewsAdapter", "Clicked article has invalid source name. Skipping.")
+                    return@setOnClickListener
+                }
                 onItemClickListener?.let {
                     it(article)
                 }
             }
+
         }
     }
     fun setOnItemClickListener(listener: (Article) -> Unit){
