@@ -36,12 +36,15 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     lateinit var retryButton: Button
     lateinit var errorText: TextView
     lateinit var itemSearchError: CardView
+    lateinit var noResultsText: TextView
     lateinit var binding: FragmentSearchBinding
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         binding = FragmentSearchBinding.bind(view)
+
+        noResultsText = binding.noResultsText
 
         itemSearchError = view.findViewById(R.id.itemSearchError)
 
@@ -79,13 +82,20 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                 is Resource.Success<*> -> {
                     hideProgressBar()
                     hideErrorMessage()
-                    response.data?.let {newsResponse ->
-                        newsAdapter.differ.submitList(newsResponse.articles.toList())
-                        val totalPages = newsResponse.totalResults / Constants.QUERY_PAGE_SIZE + 2
-                        isLastPage = newsViewModel.searchNewsPage == totalPages
-                        if (isLastPage){
-                            binding.recyclerSearch.setPadding(0,0,0,0)
-                        }
+                    val newsResponse = response.data
+                    if (newsResponse == null || newsResponse.totalResults == 0 || newsResponse.articles.isEmpty()) {
+                        showNoResultsMessage("No articles found for ‘${binding.searchEdit.text}’")
+                        newsAdapter.differ.submitList(emptyList())
+                        isLastPage = true
+                        return@Observer
+                    } else {
+                        hideNoResultsMessage()
+                    }
+                    newsAdapter.differ.submitList(newsResponse.articles.toList())
+                    val totalPages = (newsResponse.totalResults + Constants.QUERY_PAGE_SIZE - 1) / Constants.QUERY_PAGE_SIZE
+                    isLastPage = newsViewModel.searchNewsPage == totalPages
+                    if (isLastPage){
+                        binding.recyclerSearch.setPadding(0,0,0,0)
                     }
                 }
                 is Resource.Error<*> -> {
@@ -97,6 +107,12 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                 }
                 is Resource.Loading<*> -> {
                     showProgressBar()
+                }
+                is Resource.Empty<*> -> {
+                    hideProgressBar()
+                    showNoResultsMessage("No articles found for ‘${binding.searchEdit.text}’")
+                    newsAdapter.differ.submitList(emptyList())
+                    isLastPage = true
                 }
             }
         })
@@ -134,6 +150,15 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         itemSearchError.visibility = View.VISIBLE
         errorText.text = message
         isError = true
+    }
+
+    private fun showNoResultsMessage(message: String) {
+        noResultsText.text = message
+        noResultsText.visibility = View.VISIBLE
+    }
+
+    private fun hideNoResultsMessage() {
+        noResultsText.visibility = View.GONE
     }
 
     val scrollListener = object : RecyclerView.OnScrollListener() {
